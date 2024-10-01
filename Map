@@ -1,0 +1,204 @@
+import pygame
+import math
+import random
+
+pygame.init()
+
+width, height = 1200, 900
+screen = pygame.display.set_mode((width, height))
+pygame.display.set_caption("Ferrum Crucis Star System")
+
+BLACK = (0, 0, 0)
+YELLOW = (255, 255, 0)
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
+GREEN = (0, 255, 0)
+PURPLE = (128, 0, 128)
+DARK_PURPLE = (64, 0, 64)
+WHITE = (255, 255, 255)
+
+center_x, center_y = width // 2, height // 2
+sun_radius = 40
+
+def create_starfield(num_stars):
+    stars = []
+    for _ in range(num_stars):
+        x = random.randint(0, width)
+        y = random.randint(0, height)
+        brightness = random.randint(100, 255)
+        stars.append((x, y, brightness))
+    return stars
+
+class InteractiveObject:
+    def __init__(self, name, description):
+        self.name = name
+        self.description = description
+        self.rect = pygame.Rect(0, 0, 0, 0)
+
+    def is_clicked(self, pos):
+        return self.rect.collidepoint(pos)
+
+    def display_info(self, surface):
+        font = pygame.font.Font(None, 24)
+        lines = self.description.split('\n')
+        y_offset = 50
+        for line in lines:
+            text = font.render(line, True, WHITE)
+            surface.blit(text, (10, y_offset))
+            y_offset += 30
+
+class Sun(InteractiveObject):
+    def __init__(self, x, y, radius):
+        super().__init__("Sun", "The central star of the Ferrum Crucis system")
+        self.x = x
+        self.y = y
+        self.radius = radius
+        self.color = YELLOW
+
+    def draw(self, surface):
+        pygame.draw.circle(surface, self.color, (int(self.x), int(self.y)), self.radius)
+        self.rect = pygame.Rect(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)
+
+class Planet(InteractiveObject):
+    def __init__(self, name, color, orbit_radius, speed, size, description):
+        super().__init__(name, description)
+        self.color = color
+        self.orbit_radius = orbit_radius
+        self.speed = speed
+        self.size = size
+        self.angle = random.uniform(0, 2*math.pi)
+        self.x = 0
+        self.y = 0
+
+    def update(self):
+        self.angle += self.speed
+        self.x = center_x + math.cos(self.angle) * self.orbit_radius
+        self.y = center_y + math.sin(self.angle) * self.orbit_radius
+
+    def draw(self, surface):
+        pygame.draw.circle(surface, self.color, (int(self.x), int(self.y)), self.size)
+        self.rect = pygame.Rect(self.x - self.size, self.y - self.size, self.size * 2, self.size * 2)
+
+class ChaoticVoid(InteractiveObject):
+    def __init__(self, x, y, size):
+        super().__init__("Chaotic Void", "A swirling vortex of Chaos energy outside the Ferrum Crucis system")
+        self.x = x
+        self.y = y
+        self.size = size
+        self.color = (100, 0, 100)
+        self.particles = [(random.uniform(0, 2*math.pi), random.uniform(0, size)) for _ in range(100)]
+
+    def update(self):
+        for i, (angle, distance) in enumerate(self.particles):
+            self.particles[i] = ((angle + random.uniform(-0.1, 0.1)) % (2*math.pi),
+                                 max(0, min(distance + random.uniform(-2, 2), self.size)))
+
+    def draw(self, surface):
+        for angle, distance in self.particles:
+            x = self.x + math.cos(angle) * distance
+            y = self.y + math.sin(angle) * distance
+            pygame.draw.circle(surface, self.color, (int(x), int(y)), 2)
+        self.rect = pygame.Rect(self.x - self.size, self.y - self.size, self.size * 2, self.size * 2)
+
+class BehemothsMaw(InteractiveObject):
+    def __init__(self, x, y):
+        super().__init__("Behemoth's Maw", "A grotesque space hulk threatening the Ferrum Crucis system")
+        self.x = x
+        self.y = y
+        self.radius = 60
+        self.particles = []
+        self.create_particles()
+
+    def create_particles(self):
+        for _ in range(100):
+            angle = random.uniform(0, 2 * math.pi)
+            distance = random.uniform(0, self.radius)
+            x = self.x + distance * math.cos(angle)
+            y = self.y + distance * math.sin(angle)
+            self.particles.append([x, y])
+
+    def update(self):
+        for particle in self.particles:
+            particle[0] += random.uniform(-0.5, 0.5)
+            particle[1] += random.uniform(-0.5, 0.5)
+            
+            dx = particle[0] - self.x
+            dy = particle[1] - self.y
+            distance = math.sqrt(dx**2 + dy**2)
+            if distance > self.radius:
+                angle = math.atan2(dy, dx)
+                particle[0] = self.x + self.radius * math.cos(angle)
+                particle[1] = self.y + self.radius * math.sin(angle)
+
+    def draw(self, surface):
+        pygame.draw.circle(surface, DARK_PURPLE, (int(self.x), int(self.y)), self.radius)
+        for particle in self.particles:
+            pygame.draw.circle(surface, PURPLE, (int(particle[0]), int(particle[1])), 2)
+        self.rect = pygame.Rect(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)
+
+starfield = create_starfield(200)
+
+sun = Sun(center_x, center_y, sun_radius)
+
+orbit_radii = [100, 150, 200, 250]
+
+ferrum_prime = Planet("Ferrum Prime", RED, orbit_radii[0], 0.005, 15, "Ferrum Prime: A crucial Forge World producing war materiel.\nHome to an Iron Hands successor Chapter.")
+sanctum_fidelis = Planet("Sanctum Fidelis", BLUE, orbit_radii[1], 0.003, 12, "Sanctum Fidelis: A Shrine World under Adepta Sororitas protection,\na beacon of the Emperor's light.")
+edo_hanami_secundus = Planet("Edo-Hanami Secundus", GREEN, orbit_radii[2], 0.002, 13, "Edo-Hanami Secundus: A strategic Imperial world in the Ferrum Crucis system.")
+tenebris_secundus = Planet("Tenebris Secundus", PURPLE, orbit_radii[3], 0.0015, 11, "Tenebris Secundus: An outer planet in the Ferrum Crucis system,\nconstantly threatened by Chaos incursions.")
+
+planets = [ferrum_prime, sanctum_fidelis, edo_hanami_secundus, tenebris_secundus]
+
+chaotic_void = ChaoticVoid(width - 100, height - 100, 80)
+behemoths_maw = BehemothsMaw(100, 100)
+
+interactive_objects = planets + [chaotic_void, behemoths_maw, sun]
+
+font = pygame.font.Font(None, 24)
+
+running = True
+clock = pygame.time.Clock()
+selected_object = None
+
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            for obj in interactive_objects:
+                if obj.is_clicked(event.pos):
+                    selected_object = obj
+                    break
+            else:
+                selected_object = None
+
+    screen.fill(BLACK)
+
+    for star in starfield:
+        pygame.draw.circle(screen, (star[2], star[2], star[2]), (star[0], star[1]), 1)
+
+    for planet in planets:
+        pygame.draw.circle(screen, (50, 50, 50), (center_x, center_y), planet.orbit_radius, 1)
+
+    sun.draw(screen)
+
+    for planet in planets:
+        planet.update()
+        planet.draw(screen)
+
+    chaotic_void.update()
+    chaotic_void.draw(screen)
+
+    behemoths_maw.update()
+    behemoths_maw.draw(screen)
+
+    if selected_object:
+        selected_object.display_info(screen)
+
+    text = font.render("Ferrum Crucis Star System", True, (200, 200, 200))
+    screen.blit(text, (10, 10))
+
+    pygame.display.flip()
+    clock.tick(60)
+
+pygame.quit()
